@@ -1,9 +1,5 @@
 %{
-#include <stdio.h>
 #include "dzen_data_types.c"
-
-# define YYSTYPE struct dzen_token
-
 %}
 
 Start                   = ( f:Function t:TEXT?  {
