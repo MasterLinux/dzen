@@ -1,0 +1,110 @@
+%{
+#include <stdio.h>
+#include "dzen_data_types.c"
+
+# define YYSTYPE struct dzen_token
+
+%}
+
+Start                   = ( f:Function t:TEXT?  {
+                                                    add_to_token_list(f);
+                                                    add_to_token_list(t);
+                                                }
+                        )+
+
+
+# functions with a name and a specific parameter type like ^name(2x2) or ^otherName(+4;-2)
+Function                = '^' id:NAME_IDENTIFIER WHITE_SPACES? '(' WHITE_SPACES? p:Parameter? WHITE_SPACES? ')'
+{
+    $$= MAKE_DZEN_FUNCTION_TOKEN(id.string_value, p.parameter_list);
+}
+
+# each possible parameter type, see other parameter types below
+Parameter               = SizeParameter
+                        | PositioningParameterList
+                        | CONSTANT
+                        | FILE_PATH
+                        | COLOR_KEYWORD
+                        | HEX_COLOR
+
+# size parameter with a x and y coordinate like 2x2 or 2X2
+SizeParameter           = w:NUMBER DIMENSION_OPERATOR h:NUMBER
+{
+    $$= MAKE_DZEN_SIZE_PARAMETER_TOKEN(w, h);
+}
+
+# positioning parameter like +5, -5 or 5
+PositioningParameter    = o:MOVE_OPERATOR? p:NUMBER
+{
+    $$= MAKE_DZEN_POSITIONING_PARAMETER_TOKEN(o.type, p);
+}
+
+# a parameter list of positioning parameter like +4;-6 where the first parameter
+# represents the x parameter and the second one the y parameter
+PositioningParameterList    = x:PositioningParameter (WHITE_SPACES? ';' WHITE_SPACES? y:PositioningParameter)?
+{
+    $$= MAKE_DZEN_POSITIONING_PARAMETER_LIST_TOKEN(x, y);
+}
+                            | x:PositioningParameter? WHITE_SPACES? ';' WHITE_SPACES? y:PositioningParameter
+{
+    $$= MAKE_DZEN_POSITIONING_PARAMETER_LIST_TOKEN(x, y);
+}
+
+# a name usually used for function names like fg or bg
+NAME_IDENTIFIER         = < [a-zA-Z]+ >
+{
+    $$= MAKE_DZEN_NAME_IDENTIFIER_TOKEN(yytext);
+}
+
+# any text which is displayed
+TEXT                    = < [a-zA-Z_0-9 ]+ >
+{
+    $$= MAKE_DZEN_TEXT_TOKEN(yytext);
+}
+
+FILE_EXTENSION          = '.' [a-zA-Z]+
+
+# represents a file path
+FILE_PATH               = < ('./' | '../')* [a-zA-Z0-9_/]+ FILE_EXTENSION >
+{
+    $$= MAKE_DZEN_FILE_PATH_TOKEN(yytext);
+}
+
+# a constant like _TOP
+CONSTANT                = < '_' [A-Z]+ >
+{
+    $$= MAKE_DZEN_CONSTANT_TOKEN(yytext);
+}
+
+NUMBER                  = < [0-9]+ >
+{
+    $$= MAKE_DZEN_NUMBER_TOKEN(atoi(yytext));
+}
+
+DIMENSION_OPERATOR      = 'x' | 'X'
+
+MOVE_OPERATOR           = PLUS { $$= DZEN_PLUS_OPERATOR_TOKEN }
+                        | MINUS { $$= DZEN_MINUS_OPERATOR_TOKEN }
+
+HEX_COLOR_THREE_DIGIT   = '#' [a-fA-F0-9][a-fA-F0-9][a-fA-F0-9];
+HEX_COLOR_SIX_DIGIT     = '#' [a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9];
+
+# a hex color with alpha
+HEX_COLOR_RGBA          = '#' [a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9][a-fA-F0-9];
+
+# representaion of a hex color like #FFF, #FF0000 or #FFFF00FF
+HEX_COLOR               = < HEX_COLOR_RGBA | HEX_COLOR_SIX_DIGIT | HEX_COLOR_THREE_DIGIT >
+{
+    $$= MAKE_DZEN_HEX_COLOR_TOKEN(yytext);
+}
+
+# list of colors as keyword
+COLOR_KEYWORD           = < 'red' >     { $$= MAKE_DZEN_COLOR_KEYWORD_TOKEN(yytext); }
+                        | < 'yellow' >  { $$= MAKE_DZEN_COLOR_KEYWORD_TOKEN(yytext); }
+                        | < 'orange' >  { $$= MAKE_DZEN_COLOR_KEYWORD_TOKEN(yytext); }
+
+PLUS                    = '+'
+MINUS                   = '-'
+
+WHITE_SPACES            = ' '+
+
